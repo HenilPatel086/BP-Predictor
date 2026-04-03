@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>BP Predictor — ML Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Inter:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg:#050810; --surface:#0a0f1e; --card:#0d1428; --border:#1a2540;
+  --accent:#00f5ff; --pink:#ff2d78; --purple:#a855f7;
+  --amber:#f59e0b; --green:#22c55e; --text:#e2e8f0; --muted:#64748b;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--bg); color:var(--text); font-family:"Inter",sans-serif; overflow-x:hidden; }
+body::before {
+  content:""; position:fixed; inset:0;
+  background-image:linear-gradient(rgba(0,245,255,.03) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(0,245,255,.03) 1px,transparent 1px);
+  background-size:60px 60px; pointer-events:none; z-index:0;
+}
+.wrap { position:relative; z-index:1; max-width:1100px; margin:0 auto; padding:0 24px; }
+
+/* NAV */
+nav { background:rgba(5,8,16,.9); border-bottom:1px solid var(--border);
+      padding:16px 32px; display:flex; align-items:center; gap:16px;
+      position:sticky; top:0; z-index:99; backdrop-filter:blur(12px); }
+nav .logo { font-family:"Orbitron",sans-serif; font-size:16px; font-weight:900;
+            color:var(--accent); text-shadow:0 0 20px rgba(0,245,255,.5); }
+nav .tag  { font-family:"Share Tech Mono",monospace; font-size:10px;
+            color:var(--muted); letter-spacing:3px; }
+nav .best { margin-left:auto; font-family:"Share Tech Mono",monospace; font-size:11px;
+            color:var(--amber); border:1px solid var(--amber);
+            padding:4px 10px; border-radius:3px; }
+
+/* HEADER */
+header { text-align:center; padding:64px 0 48px; }
+header h1 { font-family:"Orbitron",sans-serif;
+             font-size:clamp(30px,5vw,64px); font-weight:900;
+             line-height:1.05; letter-spacing:-1px; }
+header h1 .c { color:var(--accent); text-shadow:0 0 30px rgba(0,245,255,.6); }
+header h1 .p { color:var(--pink);   text-shadow:0 0 30px rgba(255,45,120,.5); }
+header p { color:var(--muted); margin-top:14px; font-size:14px; letter-spacing:.5px; }
+.stats { display:flex; justify-content:center; gap:40px; margin-top:36px; flex-wrap:wrap; }
+.stat { font-family:"Share Tech Mono",monospace; font-size:11px;
+        color:var(--muted); letter-spacing:2px; text-align:center; }
+.stat strong { display:block; font-size:22px; color:var(--accent); margin-bottom:4px; }
+
+/* SECTION TITLE */
+.sec-hdr { display:flex; align-items:center; gap:14px; margin-bottom:28px; }
+.sec-hdr h2 { font-family:"Orbitron",sans-serif; font-size:16px;
+               font-weight:700; letter-spacing:2px; text-transform:uppercase; }
+.sec-hdr .line { flex:1; height:1px;
+                  background:linear-gradient(90deg,var(--border),transparent); }
+.sec-hdr .dot  { width:6px; height:6px; border-radius:50%;
+                background:var(--accent); box-shadow:0 0 8px var(--accent); }
+
+/* CARDS */
+.cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+         gap:18px; margin-bottom:56px; }
+.card { background:var(--card); border:1px solid var(--border);
+        border-radius:12px; padding:24px 20px; position:relative;
+        overflow:hidden; transition:.3s; cursor:default; }
+.card::before { content:""; position:absolute; top:0; left:0; right:0;
+                height:3px; background:var(--cc); box-shadow:0 0 16px var(--cc); }
+.card:hover { transform:translateY(-4px); border-color:var(--cc);
+              box-shadow:0 8px 40px rgba(0,0,0,.4); }
+.card .c-icon { font-size:22px; margin-bottom:14px; }
+.card .c-sub  { font-family:"Share Tech Mono",monospace; font-size:10px;
+                color:var(--muted); letter-spacing:2px; margin-bottom:6px; }
+.card .c-name { font-family:"Orbitron",sans-serif; font-size:13px;
+                font-weight:700; margin-bottom:18px; }
+.card .c-num  { font-family:"Orbitron",sans-serif; font-size:40px;
+                font-weight:900; color:var(--cc);
+                text-shadow:0 0 24px var(--cc); line-height:1; }
+.card .c-num span { font-size:16px; opacity:.7; }
+.card .c-metric { font-family:"Share Tech Mono",monospace; font-size:10px;
+                  color:var(--muted); margin-top:4px; letter-spacing:1px; }
+.bar { margin-top:14px; height:3px; background:rgba(255,255,255,.06);
+       border-radius:2px; overflow:hidden; }
+.bar-fill { height:100%; background:var(--cc); box-shadow:0 0 6px var(--cc);
+            width:0; transition:width 1.6s cubic-bezier(.4,0,.2,1); }
+.badge { position:absolute; top:14px; right:14px;
+         font-family:"Share Tech Mono",monospace; font-size:9px;
+         color:var(--amber); border:1px solid var(--amber);
+         padding:3px 7px; border-radius:3px;
+         background:rgba(245,158,11,.08); letter-spacing:1px; }
+
+/* PANEL */
+.panel { background:var(--card); border:1px solid var(--border);
+         border-radius:14px; padding:32px; margin-bottom:52px; }
+
+/* CHART BARS */
+.chart { display:flex; flex-direction:column; gap:16px; }
+.brow { display:grid; grid-template-columns:150px 1fr 70px;
+        align-items:center; gap:14px; }
+.blbl { font-family:"Share Tech Mono",monospace; font-size:11px;
+        color:var(--muted); text-align:right; white-space:nowrap;
+        overflow:hidden; text-overflow:ellipsis; }
+.btrack { height:26px; background:rgba(255,255,255,.04);
+          border-radius:4px; overflow:hidden; }
+.bfill { height:100%; border-radius:4px; width:0;
+         transition:width 1.8s cubic-bezier(.4,0,.2,1);
+         display:flex; align-items:center; padding-left:10px;
+         font-size:10px; font-family:"Share Tech Mono",monospace;
+         color:rgba(255,255,255,.5); white-space:nowrap; }
+.bval { font-family:"Orbitron",sans-serif; font-size:13px;
+        font-weight:700; text-align:right; }
+
+/* FORM */
+.form-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+             gap:18px; margin-top:24px; }
+.fg label { display:block; font-family:"Share Tech Mono",monospace;
+            font-size:10px; color:var(--muted); letter-spacing:2px;
+            text-transform:uppercase; margin-bottom:7px; }
+.fg input,.fg select { width:100%; background:rgba(255,255,255,.04);
+  border:1px solid var(--border); border-radius:8px;
+  padding:11px 13px; color:var(--text);
+  font-family:"Share Tech Mono",monospace; font-size:13px;
+  outline:none; transition:.2s; -webkit-appearance:none; appearance:none; }
+.fg input:focus,.fg select:focus {
+  border-color:var(--accent); box-shadow:0 0 0 3px rgba(0,245,255,.08); }
+.gender select option {background:(rgb(255, 255, 255));}
+.algo-row { margin-top:22px; }
+.algo-row label { font-family:"Share Tech Mono",monospace; font-size:10px;
+                  color:var(--muted); letter-spacing:2px;
+                  text-transform:uppercase; display:block; margin-bottom:10px; }
+.pills { display:flex; flex-wrap:wrap; gap:10px; }
+.pill { padding:8px 15px; border-radius:6px; border:1px solid var(--border);
+        background:rgba(255,255,255,.03); color:var(--muted);
+        font-family:"Share Tech Mono",monospace; font-size:11px;
+        cursor:pointer; transition:.2s; letter-spacing:1px; }
+.pill:hover { border-color:var(--accent); color:var(--accent); }
+.pill.active { background:rgba(0,245,255,.1); border-color:var(--accent);
+               color:var(--accent); box-shadow:0 0 12px rgba(0,245,255,.15); }
+.predict-btn { margin-top:26px; padding:13px 34px;
+  background:linear-gradient(135deg,rgba(0,245,255,.15),rgba(0,245,255,.05));
+  border:1px solid var(--accent); border-radius:8px; color:var(--accent);
+  font-family:"Orbitron",sans-serif; font-size:13px; font-weight:700;
+  letter-spacing:3px; text-transform:uppercase; cursor:pointer; transition:.3s; }
+.predict-btn:hover { box-shadow:0 0 30px rgba(0,245,255,.3); transform:translateY(-2px); }
+.predict-btn:disabled { opacity:.5; cursor:not-allowed; transform:none; }
+
+/* RESULT */
+.result { margin-top:26px; padding:22px; border-radius:10px;
+           border:1px solid; display:none; }
+.result.show { display:block; animation:fadeUp .5s ease both; }
+.result.normal   { border-color:var(--green); background:rgba(34,197,94,.07); }
+.result.elevated { border-color:var(--amber); background:rgba(245,158,11,.07); }
+.result.high1    { border-color:#f97316;       background:rgba(249,115,22,.07); }
+.result.high2    { border-color:var(--pink);   background:rgba(255,45,120,.07); }
+.r-tag  { font-family:"Share Tech Mono",monospace; font-size:10px;
+           color:var(--muted); letter-spacing:3px; text-transform:uppercase; margin-bottom:10px; }
+.r-cat  { font-family:"Orbitron",sans-serif; font-size:26px;
+           font-weight:900; margin-bottom:8px; }
+.r-desc { font-size:13px; color:var(--muted); line-height:1.65; }
+.r-vals { display:flex; gap:20px; margin-top:14px; flex-wrap:wrap; }
+.r-val  { font-family:"Share Tech Mono",monospace; font-size:11px; color:var(--muted); }
+.r-val strong { display:block; font-size:20px; font-family:"Orbitron",monospace;
+                color:var(--text); margin-bottom:2px; }
+.r-probs { display:flex; gap:12px; margin-top:14px; flex-wrap:wrap; }
+.r-prob  { font-family:"Share Tech Mono",monospace; font-size:10px;
+            color:var(--muted); border:1px solid var(--border);
+            padding:4px 10px; border-radius:4px; }
+.r-prob strong { color:var(--accent); }
+
+/* FEATURE IMPORTANCE */
+.fi-grid { display:flex; flex-direction:column; gap:11px; margin-top:22px; }
+.fi-row  { display:grid; grid-template-columns:140px 1fr 52px;
+            align-items:center; gap:12px; }
+.fi-lbl  { font-family:"Share Tech Mono",monospace; font-size:11px; color:var(--muted); }
+.fi-bar  { height:18px; background:rgba(255,255,255,.04); border-radius:3px; overflow:hidden; }
+.fi-fill { height:100%; border-radius:3px; width:0;
+            transition:width 2s cubic-bezier(.4,0,.2,1);
+            background:linear-gradient(90deg,var(--purple),var(--accent));
+            box-shadow:0 0 6px rgba(0,245,255,.2); }
+.fi-pct  { font-family:"Orbitron",sans-serif; font-size:11px;
+            color:var(--accent); text-align:right; }
+
+/* TABLE */
+table { width:100%; border-collapse:collapse; font-size:13px; }
+th { text-align:left; padding:11px 14px; font-family:"Share Tech Mono",monospace;
+     font-size:10px; color:var(--muted); letter-spacing:2px;
+     font-weight:400; border-bottom:1px solid var(--border); }
+td { padding:13px 14px; border-bottom:1px solid rgba(255,255,255,.04); }
+
+/* FOOTER */
+footer { border-top:1px solid var(--border); padding:28px 0;
+         text-align:center; font-family:"Share Tech Mono",monospace;
+         font-size:11px; color:var(--muted); letter-spacing:2px; }
+
+@keyframes fadeUp {
+  from { opacity:0; transform:translateY(16px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+::-webkit-scrollbar { width:5px; }
+::-webkit-scrollbar-track { background:var(--bg); }
+::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+@media(max-width:600px) {
+  .brow { grid-template-columns:100px 1fr 54px; }
+  .fi-row { grid-template-columns:100px 1fr 44px; }
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <span class="logo">⬡ BP PREDICTOR</span>
+  <span class="tag">ML DIAGNOSTIC SYSTEM v2.0</span>
+  <span class="best" id="bestBadge">⭐ BEST: GRADIENT BOOSTING 85.71%</span>
+</nav>
+
+<div class="wrap">
+
+<!-- HERO -->
+<header>
+  <h1><span class="c">Blood Pressure</span><br/><span class="p">Prediction</span> Engine</h1>
+  <p>5-Algorithm Comparative Analysis · 2800 Patient Records · Real-Time Inference</p>
+  <div class="stats">
+    <div class="stat"><strong>2,800</strong>PATIENTS</div>
+    <div class="stat"><strong>2,240</strong>TRAINING</div>
+    <div class="stat"><strong>560</strong>TESTING</div>
+    <div class="stat"><strong>9</strong>FEATURES</div>
+    <div class="stat"><strong>4</strong>BP CLASSES</div>
+  </div>
+</header>
+
+<!-- MODEL CARDS -->
+<section style="margin-bottom:52px">
+  <div class="sec-hdr"><div class="dot"></div><h2>Model Performance</h2><div class="line"></div></div>
+  <div class="cards">
+
+    <div class="card" style="--cc:#00f5ff">
+      <div class="c-icon">🌳</div>
+      <div class="c-sub">ALGORITHM 01</div>
+      <div class="c-name">Decision Tree</div>
+      <div class="c-num" id="acc-dt">—<span>%</span></div>
+      <div class="c-metric">CLASSIFICATION ACCURACY</div>
+      <div class="bar"><div class="bar-fill" id="bar-dt"></div></div>
+      <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--muted);margin-top:10px;letter-spacing:1px;">
+        Classification · Max Depth 8</div>
+    </div>
+
+
+    <div class="card" style="--cc:#a855f7">
+      <div class="c-icon">🎲</div>
+      <div class="c-sub">ALGORITHM 03</div>
+      <div class="c-name">Naive Bayes</div>
+      <div class="c-num" id="acc-nb">—<span>%</span></div>
+      <div class="c-metric">CLASSIFICATION ACCURACY</div>
+      <div class="bar"><div class="bar-fill" id="bar-nb"></div></div>
+      <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--muted);margin-top:10px;letter-spacing:1px;">
+        Probabilistic · Gaussian</div>
+    </div>
+
+    <div class="card" style="--cc:#f59e0b">
+      <div class="badge">★ BEST</div>
+      <div class="c-icon">🚀</div>
+      <div class="c-sub">ALGORITHM 04</div>
+      <div class="c-name">Gradient Boosting</div>
+      <div class="c-num" id="acc-gb">—<span>%</span></div>
+      <div class="c-metric">CLASSIFICATION ACCURACY</div>
+      <div class="bar"><div class="bar-fill" id="bar-gb"></div></div>
+      <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--muted);margin-top:10px;letter-spacing:1px;">
+        Ensemble · 100 Estimators</div>
+    </div>
+
+    <div class="card" style="--cc:#22c55e">
+      <div class="c-icon">🌲</div>
+      <div class="c-sub">ALGORITHM 05</div>
+      <div class="c-name">Random Forest</div>
+      <div class="c-num" id="acc-rf">—<span>%</span></div>
+      <div class="c-metric">CLASSIFICATION ACCURACY</div>
+      <div class="bar"><div class="bar-fill" id="bar-rf"></div></div>
+      <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--muted);margin-top:10px;letter-spacing:1px;">
+        Ensemble · 100 Trees</div>
+    </div>
+
+  </div>
+</section>
+
+<!-- COMPARISON CHART -->
+<section class="panel" style="margin-bottom:52px">
+  <div class="sec-hdr"><div class="dot"></div><h2>Accuracy Comparison</h2><div class="line"></div></div>
+  <div class="chart" id="compChart">
+    <!-- Populated dynamically from /api/models -->
+  </div>
+</section>
+
+<!-- LIVE PREDICTOR -->
+<section class="panel">
+  <div class="sec-hdr"><div class="dot"></div><h2>Live Prediction Engine</h2><div class="line"></div></div>
+  <p style="color:var(--muted);font-size:13px;margin-top:-14px">Enter patient vitals — get instant BP category prediction via the Flask API</p>
+
+  <div class="form-grid">
+    <div class="fg"><label>Age (years)</label><input type="number" id="age" value="45" min="18" max="79"/></div>
+    <div class="fg"><label>Gender</label>
+      <select id="gender" "><option value="M" style="background-color:#1A5361" onmouseover="this.style.backgroundColor=red">Male</option><option value="F" style="background-color:#1A5361" >Female</option></select></div>
+    <div class="fg"><label>BMI</label><input type="number" id="bmi" value="24.5" step="0.1" min="15" max="45"/></div>
+    <div class="fg"><label>Smoking</label>
+      <select id="smoking"><option value="No" style="background-color:#1A5361">No</option><option value="Yes" style="background-color:#1A5361">Yes</option></select></div>
+    <div class="fg"><label>Alcohol Intake</label>
+      <select id="alcohol"><option value="Low" style="background-color:#1A5361">Low</option><option value="Moderate" style="background-color:#1A5361">Moderate</option><option value="High" style="background-color:#1A5361">High</option></select></div>
+    <div class="fg"><label>Physical Activity</label>
+      <select id="activity"><option value="Low" style="background-color:#1A5361">Low</option><option value="Medium" style="background-color:#1A5361">Medium</option><option value="High" style="background-color:#1A5361">High</option></select></div>
+    <div class="fg"><label>Cholesterol (mg/dL)</label><input type="number" id="cholesterol" value="190" min="100" max="350"/></div>
+    <div class="fg"><label>Heart Rate (bpm)</label><input type="number" id="heart_rate" value="72" min="40" max="120"/></div>
+    <div class="fg"><label>Stress Level</label>
+      <select id="stress"><option value="Low" style="background-color:#1A5361">Low</option><option value="Medium" style="background-color:#1A5361">Medium</option><option value="High" style="background-color:#1A5361">High</option></select></div>
+  </div>
+
+  <div class="algo-row">
+    <label>Select Algorithm</label>
+    <div class="pills">
+      <div class="pill" data-algo="dt">🌳 Decision Tree</div>
+      <!-- <div class="pill" data-algo="lr">📈 Linear Regression</div> -->
+      <div class="pill" data-algo="nb">🎲 Naive Bayes</div>
+      <div class="pill active" data-algo="gb">🚀 Gradient Boosting</div>
+      <div class="pill" data-algo="rf">🌲 Random Forest</div>
+    </div>
+  </div>
+
+  <button class="predict-btn" id="predictBtn" onclick="doPrediction()">⚡ PREDICT</button>
+
+  <div class="result" id="resultBox">
+    <div class="r-tag">Prediction Result</div>
+    <div class="r-cat"  id="rCat"></div>
+    <div class="r-desc" id="rDesc"></div>
+    <div class="r-vals" id="rVals"></div>
+    <div class="r-probs" id="rProbs"></div>
+  </div>
+</section>
+
+<!-- FEATURE IMPORTANCE -->
+<section class="panel" style="margin-top:52px">
+  <div class="sec-hdr"><div class="dot"></div><h2>Feature Importance</h2><div class="line"></div></div>
+  <p style="color:var(--muted);font-size:13px;margin-top:-14px">Based on Random Forest model</p>
+  <div class="fi-grid">
+    <div class="fi-row"><div class="fi-lbl">Cholesterol</div><div class="fi-bar"><div class="fi-fill" data-w="100"></div></div><div class="fi-pct">33.88%</div></div>
+    <div class="fi-row"><div class="fi-lbl">BMI</div><div class="fi-bar"><div class="fi-fill" data-w="91.7"></div></div><div class="fi-pct">31.07%</div></div>
+    <div class="fi-row"><div class="fi-lbl">Age</div><div class="fi-bar"><div class="fi-fill" data-w="41.8"></div></div><div class="fi-pct">14.16%</div></div>
+    <div class="fi-row"><div class="fi-lbl">Heart Rate</div><div class="fi-bar"><div class="fi-fill" data-w="39.9"></div></div><div class="fi-pct">13.53%</div></div>
+    <div class="fi-row"><div class="fi-lbl">Stress Level</div><div class="fi-bar"><div class="fi-fill" data-w="5.3"></div></div><div class="fi-pct">1.81%</div></div>
+    <div class="fi-row"><div class="fi-lbl">Alcohol</div><div class="fi-bar"><div class="fi-fill" data-w="5.2"></div></div><div class="fi-pct">1.77%</div></div>
+    <div class="fi-row"><div class="fi-lbl">Physical Activity</div><div class="fi-bar"><div class="fi-fill" data-w="4.9"></div></div><div class="fi-pct">1.67%</div></div>
+    <div class="fi-row"><div class="fi-lbl">Gender</div><div class="fi-bar"><div class="fi-fill" data-w="3.3"></div></div><div class="fi-pct">1.12%</div></div>
+    <div class="fi-row"><div class="fi-lbl">Smoking</div><div class="fi-bar"><div class="fi-fill" data-w="2.9"></div></div><div class="fi-pct">0.99%</div></div>
+  </div>
+</section>
+
+<!-- ALGORITHM TABLE -->
+<section style="margin-top:52px;margin-bottom:52px;overflow-x:auto">
+  <div class="sec-hdr"><div class="dot"></div><h2>Algorithm Summary</h2><div class="line"></div></div>
+  <table>
+    <thead><tr>
+      <th>ALGORITHM</th><th style="text-align:center">TYPE</th>
+      <th style="text-align:center">METRIC</th><th style="text-align:center">SCORE</th>
+      <th style="text-align:center">RANK</th>
+    </tr></thead>
+    <tbody id="algoTable">
+      <!-- Populated dynamically -->
+    </tbody>
+  </table>
+</section>
+
+</div><!-- /wrap -->
+
+<footer>
+  BP PREDICTOR · 5-ALGORITHM ML SYSTEM · 2800 RECORDS · BALANCED DATASET<br/><br/>
+  <span style="color:rgba(100,116,139,.5);font-size:9px">FOR EDUCATIONAL USE ONLY · NOT FOR CLINICAL DIAGNOSIS</span>
+</footer>
+
+<script>
+const API = 'http://127.0.0.1:5000';
+let selectedAlgo = 'gb';
+
+const CHART_COLORS = {
+  dt: { grad: '#00f5ff,#38bdf8', shadow: 'rgba(0,245,255,.3)',  text: '#00f5ff' },
+  lr: { grad: '#ff2d78,#fb7185', shadow: 'rgba(255,45,120,.4)', text: '#ff2d78' },
+  nb: { grad: '#a855f7,#c084fc', shadow: 'rgba(168,85,247,.4)', text: '#a855f7' },
+  gb: { grad: '#f59e0b,#fbbf24', shadow: 'rgba(245,158,11,.4)', text: '#f59e0b' },
+  rf: { grad: '#22c55e,#4ade80', shadow: 'rgba(34,197,94,.4)',  text: '#22c55e' },
+};
+
+const ALGO_META = {
+  dt: { icon:'🌳', type:'Tree',         rank:'#3' },
+  lr: { icon:'📈', type:'Regression',   rank:'#5' },
+  nb: { icon:'🎲', type:'Probabilistic',rank:'#4' },
+  gb: { icon:'🚀', type:'Ensemble',     rank:'★ #1' },
+  rf: { icon:'🌲', type:'Ensemble',     rank:'#2' },
+};
+
+// ── Fetch accuracy info and populate UI ──────────────────────────────────────
+async function loadModels() {
+  try {
+    const res  = await fetch(`${API}/api/models`);
+    const data = await res.json();
+
+    // Sort by accuracy descending
+    const sorted = Object.entries(data).sort((a,b) => b[1].accuracy - a[1].accuracy);
+
+    // Update cards
+    for (const [key, info] of Object.entries(data)) {
+      const el = document.getElementById(`acc-${key}`);
+      if (el) el.innerHTML = `${info.accuracy}<span>%</span>`;
+      const bar = document.getElementById(`bar-${key}`);
+      if (bar) {
+        setTimeout(() => bar.style.width = Math.min(info.accuracy, 100) + '%', 400);
+      }
+    }
+
+    // Update nav badge
+    const best = sorted[0];
+    document.getElementById('bestBadge').textContent =
+      `⭐ BEST: ${best[1].name.toUpperCase()} ${best[1].accuracy}%`;
+
+    // Build comparison chart
+    const chart = document.getElementById('compChart');
+    chart.innerHTML = '';
+    for (const [key, info] of sorted) {
+      const c = CHART_COLORS[key] || { grad:'#64748b,#64748b', shadow:'rgba(100,116,139,.3)', text:'#64748b' };
+      const div = document.createElement('div');
+      div.className = 'brow';
+      div.innerHTML = `
+        <div class="blbl">${info.name}</div>
+        <div class="btrack">
+          <div class="bfill" data-w="${info.accuracy}"
+               style="background:linear-gradient(90deg,${c.grad});box-shadow:0 0 8px ${c.shadow}">
+            ${info.accuracy}% ${info.metric === 'R² Score' ? '(R²)' : ''}
+          </div>
+        </div>
+        <div class="bval" style="color:${c.text}">${info.accuracy}%</div>`;
+      chart.appendChild(div);
+    }
+
+    // Build algorithm table
+    const tbody = document.getElementById('algoTable');
+    tbody.innerHTML = '';
+    for (const [i, [key, info]] of sorted.entries()) {
+      const c    = CHART_COLORS[key];
+      const meta = ALGO_META[key];
+      const isFirst = i === 0;
+      const rankStyle = isFirst
+        ? `color:#f59e0b;font-family:Share Tech Mono,monospace;font-size:11px;border:1px solid #f59e0b;padding:3px 8px;border-radius:3px`
+        : `color:var(--muted);font-family:Share Tech Mono,monospace;font-size:11px`;
+      tbody.innerHTML += `
+        <tr>
+          <td>${meta.icon} ${info.name}</td>
+          <td style="text-align:center;font-family:Share Tech Mono,monospace;font-size:11px;color:var(--muted)">${meta.type}</td>
+          <td style="text-align:center;font-family:Share Tech Mono,monospace;font-size:11px;color:var(--muted)">${info.metric}</td>
+          <td style="text-align:center;color:${c.text};font-family:Orbitron,sans-serif;font-size:14px;font-weight:700">${info.accuracy}%</td>
+          <td style="text-align:center"><span style="${rankStyle}">${meta.rank}</span></td>
+        </tr>`;
+    }
+
+    // Animate bars
+    setTimeout(() => {
+      document.querySelectorAll('.bfill').forEach(el => {
+        const w = el.getAttribute('data-w');
+        if (w) el.style.width = w + '%';
+      });
+    }, 400);
+
+  } catch(e) {
+    console.warn('Could not load model data from API:', e.message);
+  }
+}
+
+// ── Animate feature importance bars on load ───────────────────────────────────
+window.addEventListener('load', () => {
+  loadModels();
+  setTimeout(() => {
+    document.querySelectorAll('.bar-fill,.fi-fill').forEach(el => {
+      const w = el.getAttribute('data-w');
+      if (w) el.style.width = w + '%';
+    });
+  }, 400);
+});
+
+// ── Algo pill selection ───────────────────────────────────────────────────────
+document.querySelectorAll('.pill').forEach(p => {
+  p.addEventListener('click', function() {
+    document.querySelectorAll('.pill').forEach(x => x.classList.remove('active'));
+    this.classList.add('active');
+    selectedAlgo = this.dataset.algo;
+  });
+});
+
+// ── Category metadata ─────────────────────────────────────────────────────────
+const DESCS = {
+  'Normal':       'Blood pressure is within healthy range. Maintain balanced diet, regular exercise, and routine check-ups.',
+  'Elevated':     'BP is slightly above optimal. Reduce sodium intake, increase physical activity, and manage stress.',
+  'High Stage 1': 'Hypertension Stage 1. Consult a physician. DASH diet, exercise, and possible medication recommended.',
+  'High Stage 2': 'Hypertension Stage 2. Immediate medical consultation strongly advised. Prompt treatment required.',
+};
+const CAT_CLASS = {
+  'Normal':'normal','Elevated':'elevated','High Stage 1':'high1','High Stage 2':'high2'
+};
+const CAT_COLOR = {
+  'Normal':'#22c55e','Elevated':'#f59e0b','High Stage 1':'#f97316','High Stage 2':'#ff2d78'
+};
+
+// ── Prediction ────────────────────────────────────────────────────────────────
+async function doPrediction() {
+  const btn = document.getElementById('predictBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ PREDICTING...';
+
+  const payload = {
+    algo:        selectedAlgo,
+    age:         document.getElementById('age').value,
+    gender:      document.getElementById('gender').value,
+    bmi:         document.getElementById('bmi').value,
+    smoking:     document.getElementById('smoking').value,
+    alcohol:     document.getElementById('alcohol').value,
+    activity:    document.getElementById('activity').value,
+    cholesterol: document.getElementById('cholesterol').value,
+    heart_rate:  document.getElementById('heart_rate').value,
+    stress:      document.getElementById('stress').value,
+  };
+
+  try {
+    const res  = await fetch(`${API}/api/predict`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    showResult(data);
+  } catch(err) {
+    alert('API Error: ' + err.message + '\n\nMake sure the Flask server is running:\n  python app.py');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '⚡ PREDICT';
+  }
+}
+
+function showResult(data) {
+  const cat = data.category;
+  const box = document.getElementById('resultBox');
+  box.className = 'result show ' + CAT_CLASS[cat];
+
+  document.getElementById('rCat').textContent  = cat;
+  document.getElementById('rCat').style.color  = CAT_COLOR[cat];
+  document.getElementById('rDesc').textContent = DESCS[cat] || '';
+
+  document.getElementById('rVals').innerHTML = `
+    <div class="r-val"><strong>${data.systolic}</strong>Systolic (mmHg)</div>
+    <div class="r-val"><strong>${data.diastolic}</strong>Diastolic (mmHg)</div>
+    ${data.confidence ? `<div class="r-val"><strong>${data.confidence}%</strong>Confidence</div>` : ''}
+    <div class="r-val" style="margin-left:auto">
+      <strong style="font-size:13px;color:var(--accent)">${data.algorithm}</strong>
+      ${data.metric}: ${data.accuracy}%
+    </div>`;
+
+  let probHtml = '';
+  if (data.class_probs) {
+    for (const [cls, prob] of Object.entries(data.class_probs)) {
+      probHtml += `<div class="r-prob">${cls} <strong>${prob}%</strong></div>`;
+    }
+  }
+  document.getElementById('rProbs').innerHTML = probHtml;
+  box.scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+</script>
+</body>
+</html>

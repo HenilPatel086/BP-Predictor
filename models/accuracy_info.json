@@ -1,0 +1,22 @@
+{
+  "dt": {
+    "name": "Decision Tree",
+    "accuracy": 85.0,
+    "metric": "Accuracy"
+  },
+  "nb": {
+    "name": "Naive Bayes",
+    "accuracy": 78.39,
+    "metric": "Accuracy"
+  },
+  "gb": {
+    "name": "Gradient Boosting",
+    "accuracy": 85.18,
+    "metric": "Accuracy"
+  },
+  "rf": {
+    "name": "Random Forest",
+    "accuracy": 84.82,
+    "metric": "Accuracy"
+  }
+}
